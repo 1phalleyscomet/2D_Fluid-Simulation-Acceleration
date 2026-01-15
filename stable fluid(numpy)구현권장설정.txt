@@ -1,0 +1,51 @@
+import numpy as np
+
+H, W = 128, 128
+velocity = np.zeros((H, W, 2), dtype=np.float32)
+density  = np.zeros((H, W), dtype=np.float32)
+
+---
+
+# 라이브러리 버전관리
+Name: numpy
+Version: 1.26.4
+
+Name: torch
+Version: 2.6.0+cu126
+
+Name: matplotlib
+Version: 3.8.2
+
+---
+
+#파일 구조
+fluid_sr_project/
+│
+├── data/
+│   ├── coarse/             # 저해상도 시뮬레이션 데이터 (32x32)
+│   ├── fine/               # 고해상도 시뮬레이션 데이터 (128x128)
+│   └── train_val_split.json # 학습/검증 데이터 인덱스
+│
+├── src/
+│   ├── simulation/
+│   │   ├── stable_fluids.py      # NumPy 기반 2D Stable Fluids 시뮬레이터
+│   │   ├── forces.py             # 외력(마우스 클릭, 랜덤 외력) 모듈
+│   │   └── utils.py              # 시뮬레이션 보조 함수 (boundary, advect 등)
+│   │
+│   ├── model/
+│   │   ├── unet.py               # U-Net 구조 정의
+│   │   ├── loss.py               # MSE + Continuity 기반 손실 함수
+│   │   └── train.py              # 학습 루프
+│   │
+│   ├── data_loader.py            # Coarse→Fine 데이터 로더, Temporal context 포함
+│   ├── visualize.py              # Matplotlib 기반 시각화, 비교
+│   └── video.py                  # FFmpeg 이용한 영상 생성
+│
+├── experiments/
+│   ├── configs/                  # 실험별 하이퍼파라미터 YAML/JSON
+│   └── logs/                     # 학습 로그 및 모델 체크포인트
+│
+├── requirements.txt              # 패키지 의존성
+├── run_train.py                  # 학습 실행 스크립트
+├── run_inference.py              # 추론/시각화 실행 스크립트
+└── README.md
