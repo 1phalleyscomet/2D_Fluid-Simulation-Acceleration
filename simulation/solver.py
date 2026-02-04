@@ -9,6 +9,7 @@ class Stable_Fluid:
         self.res=res #격자 크기
         self.dt=dt #시간 간격
         self.visc=visc #점성계수
+        
 
         #속도장 초기화
         self.u=np.zeros((res,res))
@@ -28,7 +29,7 @@ class Stable_Fluid:
         self.v0[:] = self.v
         """
         근데 이러면 self.u0 = self.u.copy()랑 무슨 차이인지??
-        ->timestep마다 메모리 재할당으로 속도 저하
+        self.u.copy()->timestep마다 메모리 재할당으로 속도 저하
         u0가 새로운 객체를 point함
         """
 
@@ -41,8 +42,7 @@ class Stable_Fluid:
     #이류
     def advect(self):
         res=self.res
-        dt0=self.dt*(res-2)
-
+        dt0=self.dt*(res-2) 
         #격자 좌표 구간 생성
         X, Y = np.meshgrid(np.arange(res), np.arange(res))
 
@@ -61,13 +61,40 @@ class Stable_Fluid:
         #mode='nearest'->배열 밖 좌표를 가장 가까운 내부 값으로 대체
 
     #확산
-    def diffuse(self):
-        pass
+    def diffuse(self, iterations=20):
+        #현 속도장 백업(이전 값 저장)
+        self.u0[:] = self.u
+        self.v0[:] = self.v
+        #확산 계수
+        a = self.dt * self.visc * (self.res - 2)**2
+        #jacobi 반복 (interations 만큼)
+        for _ in range(iterations):
+            self.u[1:-1,1:-1] = (self.u0[1:-1,1:-1] + a * (self.u[2:,1:-1] + self.u[:-2,1:-1] + self.u[1:-1,2:] + self.u[1:-1,:-2])) / (1 + 4*a)
+            self.v[1:-1,1:-1] = (self.v0[1:-1,1:-1] + a * (self.v[2:,1:-1] + self.v[:-2,1:-1] + self.v[1:-1,2:] + self.v[1:-1,:-2])) / (1 + 4*a)
+
 
     #gradient 제거
-    def project(self):
-        pass
+    def project(self, iterations=20):
+        #기본 설정
+        res = self.res #격자 크기
+        h = 1.0 / (res - 2) #격자단위
+        div = np.zeros((res, res)) #divergence 저장
+        p = np.zeros((res, res)) #pressure 저장
+        div[1:-1,1:-1] = -0.5 * h * (self.u[2:,1:-1] - self.u[:-2,1:-1] +
+                                        self.v[1:-1,2:] - self.v[1:-1,:-2])
+        #jacobi 반복(pressure cal.)
+        for _ in range(iterations):
+            p[1:-1,1:-1] = (div[1:-1,1:-1] + p[2:,1:-1] + p[:-2,1:-1] +
+                            p[1:-1,2:] + p[1:-1,:-2]) / 4
+        #속도장 보정(속도장 div 제거)
+        self.u[1:-1,1:-1] -= 0.5 * (p[2:,1:-1] - p[:-2,1:-1]) / h
+        self.v[1:-1,1:-1] -= 0.5 * (p[1:-1,2:] - p[1:-1,:-2]) / h
+        """
+        비압축 유체를 가정 ->div=0으로 속도 발산 제거
+        속도에서 압력 기울기(pressure gradient) 제거(유체 압축 X)
+        """
+
 
     def get_data(self):
         #ai 학습용으로 속도장 stack 반환
-        return np.stack([self.u,self.v],axis=0)
+        return np.stack([self.u,self.v],axis=0).astype(np.float32)
